@@ -11,9 +11,10 @@ import { useSessionStore } from '@/stores/sessionStore';
 import {
   showSessionNotification,
   dismissSessionNotification,
-  scheduleEngagementNotifications,
-  scheduleStreakRiskNotification,
+  scheduleSmartEngagementNotifications,
+  scheduleSmartStreakNotification,
   scheduleWeeklyRecapNotification,
+  registerPushToken,
 } from '@/lib/notifications';
 import { useGamificationStore } from '@/stores/gamificationStore';
 import { ConfettiProvider } from '@/contexts/ConfettiContext';
@@ -84,17 +85,22 @@ export default function RootLayout() {
     if (showSplash) return; // Wait until splash is done
 
     const timer = setTimeout(() => {
-      scheduleEngagementNotifications();
+      scheduleSmartEngagementNotifications();
       scheduleWeeklyRecapNotification();
 
       // Streak at risk notification
       const streakCount = useGamificationStore.getState().streak.count;
       if (streakCount > 0) {
-        scheduleStreakRiskNotification(streakCount);
+        scheduleSmartStreakNotification(streakCount);
+      }
+
+      // Register push token for buddy notifications
+      if (user?.id) {
+        registerPushToken(user.id);
       }
     }, 5000);
     return () => clearTimeout(timer);
-  }, [showSplash]);
+  }, [showSplash, user?.id]);
 
   // ─── Persistent session notification ───
   // Show immediately when session starts, update every 15s while foregrounded,

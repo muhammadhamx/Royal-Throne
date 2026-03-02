@@ -18,6 +18,7 @@ import {
   incrementSessionCount,
   type SessionReward,
 } from '@/gamification/rewards';
+import { notifyBuddy } from '@/lib/notifications';
 
 const ACTIVE_SESSION_KEY = 'active_session';
 
@@ -90,6 +91,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       elapsedSeconds: 0,
       currentSessionId: session.id,
     });
+
+    // Notify buddy that session started
+    notifyBuddy('session_started').catch(() => {});
   },
 
   stopSession: async (userId: string) => {
@@ -125,6 +129,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       currentSessionId: null,
       sessions: [updated, ...state.sessions],
     }));
+
+    // Notify buddy that session ended
+    notifyBuddy('session_ended').catch(() => {});
 
     // Roll rewards (lucky poop + mystery box)
     const sessionCount = await incrementSessionCount();

@@ -98,24 +98,6 @@ export const ACHIEVEMENT_HUMOR: Record<string, string> = {
   centurion: 'One hundred sessions. You\'re basically a professional.',
 };
 
-export const ENGAGEMENT_NOTIFICATIONS = [
-  { title: 'Daily Poop Fact 💩', body: 'The average person spends about 3 months of their lifetime on the toilet. Make them count!' },
-  { title: 'Royal Throne Wisdom 👑', body: 'Squatting is the most natural pooping position. Your ancestors knew what was up.' },
-  { title: 'Health Tip 🩺', body: 'A healthy poop should take less than 10 minutes. If longer, you might need more fiber!' },
-  { title: 'Did You Know? 🤓', body: 'Your gut has over 100 million neurons. It\'s literally your second brain!' },
-  { title: 'Hydration Check 💧', body: 'Drinking water helps keep things moving. Have you had 8 glasses today?' },
-  { title: 'Fiber Alert 🥦', body: 'Adults need 25-30g of fiber daily. Most people only get half that. Eat your veggies!' },
-  { title: 'Poop Buddy Waiting 🤝', body: 'Someone out there is pooping right now. Find your poop buddy!' },
-  { title: 'Streak Check 🔥', body: 'Have you logged today\'s session? Keep your streak going!' },
-  { title: 'Bristol Chart Tip 🎯', body: 'The ideal poop is smooth, soft, and sausage-shaped. Type 4 on the Bristol Stool Chart.' },
-  { title: 'Routine Matters ⏰', body: 'Regular bathroom habits = happy gut. Try going at the same time each day.' },
-  { title: 'Gut Feeling 🧠', body: '95% of your serotonin is produced in your gut. Happy gut, happy you!' },
-  { title: 'Friendly Reminder 👀', body: 'Don\'t scroll too long on the toilet — it increases hemorrhoid risk. We see you.' },
-  { title: 'Doctor Says 🏥', body: 'Changes in poop color or consistency lasting more than 2 weeks? Time to see a doctor.' },
-  { title: 'Coffee Fact ☕', body: 'Coffee makes 30% of people need to poop within 20 minutes. Science is beautiful.' },
-  { title: 'Pro Tip 💡', body: 'A footstool under your feet mimics squatting and can make things way easier.' },
-];
-
 export function getRandomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }

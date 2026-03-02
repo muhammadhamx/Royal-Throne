@@ -14,6 +14,7 @@ import { updateProfile } from '@/lib/database';
 import { getChannel, removeChannel } from '@/lib/realtime';
 import { useGamificationStore } from '@/stores/gamificationStore';
 import { XP_REWARDS } from '@/gamification/xp';
+import { notifyBuddy } from '@/lib/notifications';
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -170,6 +171,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               payload: { match },
             });
             removeChannel('buddy-matchmaking');
+            // Push notification to buddy
+            notifyBuddy('buddy_matched').catch(() => {});
           }
         } catch (err) {
           set({ error: 'Failed to create buddy match' });
@@ -205,6 +208,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
               payload: { match },
             });
             removeChannel('buddy-matchmaking');
+            // Push notification to buddy
+            notifyBuddy('buddy_matched').catch(() => {});
           }
         } catch (err) {
           set({ error: 'Failed to create buddy match' });

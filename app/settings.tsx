@@ -38,7 +38,7 @@ import { useCreditsStore } from '@/stores/creditsStore';
 import type { Profile } from '@/types/database';
 import { COLORS, GRADIENTS, SHADOWS, RADIUS, SPACING } from '@/utils/constants';
 import {
-  scheduleEngagementNotifications,
+  scheduleSmartEngagementNotifications,
   cancelEngagementNotifications,
 } from '@/lib/notifications';
 
@@ -300,7 +300,7 @@ export default function SettingsScreen() {
     setNotificationsEnabled(value);
     await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, value.toString());
     if (value) {
-      await scheduleEngagementNotifications();
+      await scheduleSmartEngagementNotifications();
     } else {
       await cancelEngagementNotifications();
     }
