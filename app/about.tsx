@@ -18,11 +18,6 @@ const PROMISES = [
     body: 'No email required. No sign-up forms. You get an anonymous account the moment you open the app. That\'s it.',
   },
   {
-    emoji: '📵',
-    title: 'Zero Ads, Forever',
-    body: 'No ads. No sponsored content. No "watch this video for 5 credits." We respect your throne time.',
-  },
-  {
     emoji: '🗑️',
     title: 'Delete Everything, Anytime',
     body: 'Hit delete in Settings and every byte of your data vanishes from our servers. No 90-day retention tricks.',

@@ -32,7 +32,7 @@ const SECTIONS = [
       },
       {
         heading: 'What we NEVER do',
-        body: 'Sell your data. Use it for ads. Share it with analytics providers. Build marketing profiles. Period.',
+        body: 'Sell your data. Share it with analytics providers. Build marketing profiles. Period.',
       },
     ],
   },
@@ -94,7 +94,7 @@ export default function PrivacyPolicyScreen() {
       <View style={styles.tldrCard}>
         <Text style={styles.tldrLabel}>TL;DR</Text>
         <Text style={styles.tldrText}>
-          We collect the bare minimum to make the app work. We never sell your data, never show ads, and never track you. You can delete everything anytime. That's it. Now go poop in peace.
+          We collect the bare minimum to make the app work. We never sell your data and never track you. You can delete everything anytime. That's it. Now go poop in peace.
         </Text>
       </View>
 

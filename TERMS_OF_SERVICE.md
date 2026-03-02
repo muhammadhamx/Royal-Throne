@@ -16,7 +16,7 @@ We may update these Terms from time to time. When we do, we will revise the "Las
 
 ## 2. Description of the App
 
-Royal Throne is a free mobile application that allows you to track your bathroom sessions, view personal statistics, and interact with other users through real-time chat features including buddy matching and group chat rooms. The App is provided free of charge with no advertisements.
+Royal Throne is a free mobile application that allows you to track your bathroom sessions, view personal statistics, and interact with other users through real-time chat features including buddy matching and group chat rooms. The App is provided completely free of charge.
 
 ---
 

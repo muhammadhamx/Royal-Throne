@@ -62,7 +62,6 @@ We use the information we collect solely to:
 We do **not**:
 
 - Sell your data to third parties.
-- Use your data for advertising.
 - Share your data with third-party analytics providers.
 - Use your data to build marketing profiles.
 
@@ -133,7 +132,7 @@ The App relies on the following third-party service for its backend infrastructu
 
 - **Supabase** — database hosting, authentication, and real-time features. Supabase's privacy policy can be found at [https://supabase.com/privacy](https://supabase.com/privacy).
 
-We do not integrate any third-party advertising networks, social media trackers, or analytics platforms.
+We do not integrate any third-party social media trackers or analytics platforms.
 
 ---
 
