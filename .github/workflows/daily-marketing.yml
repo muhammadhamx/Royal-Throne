@@ -23,16 +23,46 @@ jobs:
           # Extract post text and tags
           POST_TEXT=$(jq -r ".[$INDEX].text" marketing/posts.json)
           TAGS=$(jq -r ".[$INDEX].tags | map(\"#\" + .) | join(\" \")" marketing/posts.json)
+          TEMPLATE=$(jq -r ".[$INDEX].template" marketing/posts.json)
 
-          # Save to outputs (use delimiter for multiline)
+          # Save to outputs
           echo "index=$INDEX" >> $GITHUB_OUTPUT
+          echo "template=$TEMPLATE" >> $GITHUB_OUTPUT
 
           # Write post to file for other steps
           echo "$POST_TEXT" > /tmp/post_text.txt
           echo "$TAGS" > /tmp/post_tags.txt
 
-          echo "Selected post index: $INDEX"
+          echo "Selected post index: $INDEX (template: $TEMPLATE)"
           echo "Tags: $TAGS"
+
+      # ─── Download Inter Font ───
+      - name: Download Inter font
+        run: |
+          mkdir -p /tmp/fonts
+          INTER_URL="https://github.com/rsms/inter/releases/download/v4.0/Inter-4.0.zip"
+          curl -sL "$INTER_URL" -o /tmp/inter.zip
+          unzip -q /tmp/inter.zip -d /tmp/inter_extract
+          # Copy TTF files (Inter v4 has them in Inter-4.0/extras/ttf/)
+          find /tmp/inter_extract -name "*.ttf" -path "*/extras/ttf/*" -exec cp {} /tmp/fonts/ \; 2>/dev/null
+          # Fallback: copy any TTF if above path didn't match
+          if [ -z "$(ls /tmp/fonts/*.ttf 2>/dev/null)" ]; then
+            find /tmp/inter_extract -name "Inter-*.ttf" -exec cp {} /tmp/fonts/ \; 2>/dev/null
+          fi
+          # Final fallback: copy OTF files
+          if [ -z "$(ls /tmp/fonts/*.ttf 2>/dev/null)" ]; then
+            find /tmp/inter_extract -name "Inter-*.otf" -exec cp {} /tmp/fonts/ \; 2>/dev/null
+          fi
+          echo "Fonts available:"
+          ls -la /tmp/fonts/ || echo "No fonts found — will use system fallback"
+
+      # ─── Generate Marketing Image ───
+      - name: Generate marketing image
+        run: |
+          pip install Pillow -q
+          FONT_DIR=/tmp/fonts python3 marketing/generate_image.py ${{ steps.pick.outputs.index }} /tmp/marketing_image.png
+          echo "Image generated:"
+          ls -la /tmp/marketing_image.png
 
       # ─── Twitter/X (DISABLED — requires $100/month paid API plan) ───
       # - name: Post to Twitter/X
@@ -67,7 +97,7 @@ jobs:
       #     print(f"Tweet posted: {response.data['id']}")
       #     PYEOF
 
-      # ─── Bluesky ───
+      # ─── Bluesky (with image) ───
       - name: Post to Bluesky
         continue-on-error: true
         if: env.BLUESKY_ENABLED == 'true'
@@ -78,7 +108,7 @@ jobs:
         run: |
           pip install atproto -q
           python3 << 'PYEOF'
-          from atproto import Client
+          from atproto import Client, models
           import os
 
           client = Client()
@@ -94,11 +124,22 @@ jobs:
           if len(post) > 300:
               post = text[:297] + "..."
 
-          response = client.send_post(text=post)
+          # Upload image
+          image_path = '/tmp/marketing_image.png'
+          if os.path.exists(image_path):
+              with open(image_path, 'rb') as img_file:
+                  img_data = img_file.read()
+              upload = client.upload_blob(img_data)
+              images = [models.AppBskyEmbedImages.Image(alt="Royal Throne — poop tracker app", image=upload.blob)]
+              embed = models.AppBskyEmbedImages.Main(images=images)
+              response = client.send_post(text=post, embed=embed)
+          else:
+              response = client.send_post(text=post)
+
           print(f"Bluesky post created: {response.uri}")
           PYEOF
 
-      # ─── Mastodon ───
+      # ─── Mastodon (with image) ───
       - name: Post to Mastodon
         continue-on-error: true
         if: env.MASTODON_ENABLED == 'true'
@@ -114,21 +155,148 @@ jobs:
           $TAGS"
           INSTANCE="${MASTODON_INSTANCE:-https://mastodon.social}"
 
-          curl -s -X POST "${INSTANCE}/api/v1/statuses" \
-            -H "Authorization: Bearer $MASTODON_ACCESS_TOKEN" \
-            -F "status=${FULL_POST}" \
-            -F "visibility=public" | jq -r '.url // .error'
+          # Upload image first
+          IMAGE_PATH="/tmp/marketing_image.png"
+          MEDIA_ID=""
+          if [ -f "$IMAGE_PATH" ]; then
+            MEDIA_RESPONSE=$(curl -s -X POST "${INSTANCE}/api/v2/media" \
+              -H "Authorization: Bearer $MASTODON_ACCESS_TOKEN" \
+              -F "file=@${IMAGE_PATH}" \
+              -F "description=Royal Throne — poop tracker app")
+            MEDIA_ID=$(echo "$MEDIA_RESPONSE" | jq -r '.id // empty')
+            echo "Mastodon media uploaded: $MEDIA_ID"
+          fi
+
+          # Post with or without media
+          if [ -n "$MEDIA_ID" ]; then
+            curl -s -X POST "${INSTANCE}/api/v1/statuses" \
+              -H "Authorization: Bearer $MASTODON_ACCESS_TOKEN" \
+              -F "status=${FULL_POST}" \
+              -F "media_ids[]=${MEDIA_ID}" \
+              -F "visibility=public" | jq -r '.url // .error'
+          else
+            curl -s -X POST "${INSTANCE}/api/v1/statuses" \
+              -H "Authorization: Bearer $MASTODON_ACCESS_TOKEN" \
+              -F "status=${FULL_POST}" \
+              -F "visibility=public" | jq -r '.url // .error'
+          fi
+
+      # ─── Facebook Page (photo post) ───
+      - name: Post to Facebook Page
+        continue-on-error: true
+        if: env.FACEBOOK_ENABLED == 'true'
+        env:
+          FACEBOOK_ENABLED: ${{ secrets.FACEBOOK_PAGE_TOKEN != '' }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+        run: |
+          POST_TEXT=$(cat /tmp/post_text.txt)
+          TAGS=$(cat /tmp/post_tags.txt)
+          FULL_POST="$POST_TEXT
+
+          $TAGS"
+
+          IMAGE_PATH="/tmp/marketing_image.png"
+
+          if [ -f "$IMAGE_PATH" ]; then
+            # Photo post (image + caption)
+            RESPONSE=$(curl -s -X POST "https://graph.facebook.com/v19.0/${FACEBOOK_PAGE_ID}/photos" \
+              -H "Authorization: Bearer ${FACEBOOK_PAGE_TOKEN}" \
+              -F "source=@${IMAGE_PATH}" \
+              -F "message=${FULL_POST}")
+          else
+            # Text-only fallback
+            RESPONSE=$(curl -s -X POST "https://graph.facebook.com/v19.0/${FACEBOOK_PAGE_ID}/feed" \
+              -H "Authorization: Bearer ${FACEBOOK_PAGE_TOKEN}" \
+              -F "message=${FULL_POST}")
+          fi
+
+          echo "Facebook response: $RESPONSE"
+          echo "$RESPONSE" | jq -r '.id // .error.message // "Unknown error"'
+
+      # ─── Instagram (Content Publishing API) ───
+      - name: Post to Instagram
+        continue-on-error: true
+        if: env.INSTAGRAM_ENABLED == 'true'
+        env:
+          INSTAGRAM_ENABLED: ${{ secrets.INSTAGRAM_ACCOUNT_ID != '' }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+        run: |
+          POST_TEXT=$(cat /tmp/post_text.txt)
+          TAGS=$(cat /tmp/post_tags.txt)
+          FULL_POST="$POST_TEXT
+
+          $TAGS
+
+          Link in bio!"
+
+          IMAGE_PATH="/tmp/marketing_image.png"
+
+          if [ ! -f "$IMAGE_PATH" ]; then
+            echo "No image found, skipping Instagram (requires image)"
+            exit 0
+          fi
+
+          # Upload image to 0x0.st (free, no auth needed, temporary hosting)
+          echo "Uploading image to temporary host..."
+          IMAGE_URL=$(curl -s -F "file=@${IMAGE_PATH}" https://0x0.st)
+
+          if [ -z "$IMAGE_URL" ] || echo "$IMAGE_URL" | grep -qi "error"; then
+            echo "Image upload failed, trying alternative host..."
+            # Fallback: try litterbox (1h expiry)
+            IMAGE_URL=$(curl -s -F "reqtype=fileupload" -F "time=1h" -F "fileToUpload=@${IMAGE_PATH}" https://litterbox.catbox.moe/resources/internals/api.php)
+          fi
+
+          if [ -z "$IMAGE_URL" ]; then
+            echo "Failed to upload image to any host"
+            exit 1
+          fi
+
+          echo "Image URL: $IMAGE_URL"
+
+          # Step 1: Create media container
+          CREATE_RESPONSE=$(curl -s -X POST "https://graph.facebook.com/v19.0/${INSTAGRAM_ACCOUNT_ID}/media" \
+            -d "image_url=${IMAGE_URL}" \
+            --data-urlencode "caption=${FULL_POST}" \
+            -d "access_token=${FACEBOOK_PAGE_TOKEN}")
+
+          CREATION_ID=$(echo "$CREATE_RESPONSE" | jq -r '.id // empty')
+          echo "Container created: $CREATION_ID"
+
+          if [ -z "$CREATION_ID" ]; then
+            echo "Failed to create media container: $CREATE_RESPONSE"
+            exit 1
+          fi
+
+          # Step 2: Wait for processing
+          sleep 10
+
+          # Step 3: Publish
+          PUBLISH_RESPONSE=$(curl -s -X POST "https://graph.facebook.com/v19.0/${INSTAGRAM_ACCOUNT_ID}/media_publish" \
+            -d "creation_id=${CREATION_ID}" \
+            -d "access_token=${FACEBOOK_PAGE_TOKEN}")
+
+          echo "Instagram response: $PUBLISH_RESPONSE"
+          echo "$PUBLISH_RESPONSE" | jq -r '.id // .error.message // "Unknown error"'
 
       # ─── Summary ───
       - name: Summary
         run: |
-          INDEX=$(cat $GITHUB_OUTPUT 2>/dev/null | grep index | cut -d= -f2 || echo "?")
           echo "## Daily Marketing Post" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Post Index:** $INDEX" >> $GITHUB_STEP_SUMMARY
+          echo "**Post Index:** ${{ steps.pick.outputs.index }} (Template: ${{ steps.pick.outputs.template }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat /tmp/post_text.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:** $(cat /tmp/post_tags.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** Generated (1080x1080)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Platforms" >> $GITHUB_STEP_SUMMARY
+          echo "- Bluesky: with image" >> $GITHUB_STEP_SUMMARY
+          echo "- Mastodon: with image" >> $GITHUB_STEP_SUMMARY
+          echo "- Facebook Page: photo post" >> $GITHUB_STEP_SUMMARY
+          echo "- Instagram: image post" >> $GITHUB_STEP_SUMMARY
