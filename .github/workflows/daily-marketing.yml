@@ -34,54 +34,42 @@ jobs:
           echo "Selected post index: $INDEX"
           echo "Tags: $TAGS"
 
-      # ─── Twitter/X ───
-      - name: Post to Twitter/X
-        if: env.TWITTER_ENABLED == 'true'
-        env:
-          TWITTER_ENABLED: ${{ secrets.TWITTER_API_KEY != '' }}
-          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
-        run: |
-          POST_TEXT=$(cat /tmp/post_text.txt)
-          TAGS=$(cat /tmp/post_tags.txt)
-
-          # Trim to 280 chars if needed (leave room for tags)
-          FULL_POST="$POST_TEXT"
-          if [ ${#FULL_POST} -gt 280 ]; then
-            FULL_POST="${FULL_POST:0:277}..."
-          fi
-
-          pip install tweepy -q
-          python3 << 'PYEOF'
-          import tweepy, os
-
-          client = tweepy.Client(
-              consumer_key=os.environ['TWITTER_API_KEY'],
-              consumer_secret=os.environ['TWITTER_API_SECRET'],
-              access_token=os.environ['TWITTER_ACCESS_TOKEN'],
-              access_token_secret=os.environ['TWITTER_ACCESS_SECRET']
-          )
-
-          with open('/tmp/post_text.txt') as f:
-              text = f.read().strip()
-          with open('/tmp/post_tags.txt') as f:
-              tags = f.read().strip()
-
-          # Twitter: append tags if space allows
-          tweet = text
-          if len(tweet) + len(tags) + 2 <= 280:
-              tweet = f"{text}\n\n{tags}"
-          elif len(tweet) > 280:
-              tweet = tweet[:277] + "..."
-
-          response = client.create_tweet(text=tweet)
-          print(f"Tweet posted: {response.data['id']}")
-          PYEOF
+      # ─── Twitter/X (DISABLED — requires $100/month paid API plan) ───
+      # - name: Post to Twitter/X
+      #   if: env.TWITTER_ENABLED == 'true'
+      #   continue-on-error: true
+      #   env:
+      #     TWITTER_ENABLED: ${{ secrets.TWITTER_API_KEY != '' }}
+      #     TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+      #     TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+      #     TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      #     TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+      #   run: |
+      #     pip install tweepy -q
+      #     python3 << 'PYEOF'
+      #     import tweepy, os
+      #     client = tweepy.Client(
+      #         consumer_key=os.environ['TWITTER_API_KEY'],
+      #         consumer_secret=os.environ['TWITTER_API_SECRET'],
+      #         access_token=os.environ['TWITTER_ACCESS_TOKEN'],
+      #         access_token_secret=os.environ['TWITTER_ACCESS_SECRET']
+      #     )
+      #     with open('/tmp/post_text.txt') as f:
+      #         text = f.read().strip()
+      #     with open('/tmp/post_tags.txt') as f:
+      #         tags = f.read().strip()
+      #     tweet = text
+      #     if len(tweet) + len(tags) + 2 <= 280:
+      #         tweet = f"{text}\n\n{tags}"
+      #     elif len(tweet) > 280:
+      #         tweet = tweet[:277] + "..."
+      #     response = client.create_tweet(text=tweet)
+      #     print(f"Tweet posted: {response.data['id']}")
+      #     PYEOF
 
       # ─── Bluesky ───
       - name: Post to Bluesky
+        continue-on-error: true
         if: env.BLUESKY_ENABLED == 'true'
         env:
           BLUESKY_ENABLED: ${{ secrets.BLUESKY_HANDLE != '' }}
@@ -112,6 +100,7 @@ jobs:
 
       # ─── Mastodon ───
       - name: Post to Mastodon
+        continue-on-error: true
         if: env.MASTODON_ENABLED == 'true'
         env:
           MASTODON_ENABLED: ${{ secrets.MASTODON_ACCESS_TOKEN != '' }}
