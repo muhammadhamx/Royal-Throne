@@ -238,14 +238,24 @@ jobs:
             exit 0
           fi
 
-          # Upload image to 0x0.st (free, no auth needed, temporary hosting)
+          # Upload image to temporary public host (Instagram needs a public URL)
           echo "Uploading image to temporary host..."
-          IMAGE_URL=$(curl -s -F "file=@${IMAGE_PATH}" https://0x0.st)
+          IMAGE_URL=""
 
+          # Try litterbox first (1h expiry, reliable)
+          IMAGE_URL=$(curl -s -A "Mozilla/5.0" -F "reqtype=fileupload" -F "time=1h" -F "fileToUpload=@${IMAGE_PATH}" https://litterbox.catbox.moe/resources/internals/api.php)
+
+          # Fallback: 0x0.st
           if [ -z "$IMAGE_URL" ] || echo "$IMAGE_URL" | grep -qi "error"; then
-            echo "Image upload failed, trying alternative host..."
-            # Fallback: try litterbox (1h expiry)
-            IMAGE_URL=$(curl -s -F "reqtype=fileupload" -F "time=1h" -F "fileToUpload=@${IMAGE_PATH}" https://litterbox.catbox.moe/resources/internals/api.php)
+            echo "Litterbox failed, trying 0x0.st..."
+            IMAGE_URL=$(curl -s -A "Mozilla/5.0" -F "file=@${IMAGE_PATH}" https://0x0.st)
+          fi
+
+          # Fallback: file.io (single download, auto-deletes)
+          if [ -z "$IMAGE_URL" ] || echo "$IMAGE_URL" | grep -qi "error\|not allowed"; then
+            echo "0x0.st failed, trying file.io..."
+            FILEIO_RESPONSE=$(curl -s -A "Mozilla/5.0" -F "file=@${IMAGE_PATH}" https://file.io)
+            IMAGE_URL=$(echo "$FILEIO_RESPONSE" | jq -r '.link // empty')
           fi
 
           if [ -z "$IMAGE_URL" ]; then
