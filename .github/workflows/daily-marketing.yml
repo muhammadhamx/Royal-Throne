@@ -2,8 +2,8 @@ name: Daily Social Media Marketing
 
 on:
   schedule:
-    # Runs daily at 14:00 UTC (7pm PKT, 10am EST - good engagement times)
-    - cron: '0 14 * * *'
+    # Runs daily at 16:00 UTC (9pm PKT)
+    - cron: '0 16 * * *'
   workflow_dispatch: # Manual trigger for testing
 
 jobs:
